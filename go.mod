@@ -1,6 +1,6 @@
 module github.com/bairrya/youtube-rss
 
-go 1.21.1
+go 1.23
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1 // indirect
