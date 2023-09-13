@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>YouTube Channel | RSS Feed Finder</title>
+        {{template "partials/unocss" .}}
+        <script
+            src="https://unpkg.com/htmx.org@1.9.4"
+            integrity="sha384-zUfuhFKKZCbHTY6aRR46gxiqszMk5tcHjsVFxnUo8VMus4kHGVdIYVbOYYNlKmHV"
+            crossorigin="anonymous"
+        ></script>
+        <script
+            src="https://cdn.jsdelivr.net/npm/@ryangjchandler/alpine-clipboard@2.x.x/dist/alpine-clipboard.js"
+            defer
+        ></script>
+        <script
+            defer
+            src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.0/dist/cdn.min.js"
+        ></script>
+    </head>
+    <body class="min-h-screen max-w-lg px-5 block mx-auto font-sans">
+        {{template "partials/header" .}}
+        <main>{{embed}}</main>
+        {{template "partials/footer" .}}
+    </body>
+</html>

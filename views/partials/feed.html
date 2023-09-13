@@ -1,0 +1,14 @@
+<div x-data="{ open: false }">
+    <p class="text-black">
+        https://www.youtube.com/feeds/videos.xml?channel_id={{.Feed.ChannelID}}
+    </p>
+    <button
+        x-on:click="open = true"
+        x-clipboard.raw="https://www.youtube.com/feeds/videos.xml?channel_id={{.Feed.ChannelID}}"
+    >
+        Copy to Clipboard
+    </button>
+    <p class="text-green-400" x-show="open" @click.outside="open = false">
+        Copied!
+    </p>
+</div>
