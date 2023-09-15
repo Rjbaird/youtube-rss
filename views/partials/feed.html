@@ -1,12 +1,22 @@
-<div x-data="{ open: false }">
-    <p class="text-black">
-        https://www.youtube.com/feeds/videos.xml?channel_id={{.Feed.ChannelID}}
-    </p>
+<div
+    class="flex flex-col w-full h-full p-4 space-y-2 bg-white"
+    x-data="{ open: false }"
+>
+    <p class="text-black">{{.Feed.Title}}</p>
+    <p class="text-black">{{.Feed.Handle}}</p>
+    <p class="text-black">{{.Feed.Description}}</p>
+    <p class="text-black">{{.Feed.ChannelID}}</p>
+    <ul class="list-none">
+        {{ range .Keywords }}
+        <li>{{.}}</li>
+        {{ end }}
+    </ul>
     <button
+        class=""
         x-on:click="open = true"
         x-clipboard.raw="https://www.youtube.com/feeds/videos.xml?channel_id={{.Feed.ChannelID}}"
     >
-        Copy to Clipboard
+        Copy Feed to Clipboard
     </button>
     <p class="text-green-400" x-show="open" @click.outside="open = false">
         Copied!
