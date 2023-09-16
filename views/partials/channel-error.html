@@ -1,1 +1,9 @@
-<p>That looks like a video url. Please submit a channel url.</p>
+<div class="px-16">
+    <form id="channel-form" class="" hx-get="/feed" hx-target="#feed-results">
+        <label for="url">URL</label>
+        <input type="url" name="url" />
+        <button>Submit</button>
+    </form>
+    
+    <div id="feed-results"></div>
+</div>

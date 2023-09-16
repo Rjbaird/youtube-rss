@@ -1,8 +1,27 @@
-<div>
-    <form hx-get="/feed" hx-target="#feed-results">
-        <label for="url">URL</label>
-        <input type="url" name="url" />
+<div class="px-16">
+    <h3>Channel Feed</h3>
+    <form id="channel-search" hx-get="/feed" hx-boost="true">
+        <label for="url"> {{template "partials/youtube-logo" .}} </label>
+        <input
+            type="url"
+            name="url"
+            placeholder="https://www.youtube.com/..."
+        />
         <button>Submit</button>
     </form>
+
+    <h3>Filter Feeds</h3>
+    <form
+        id="channel-filter"
+        action="filter"
+        hx-get="/filter"
+        hx-trigger="change, keyup delay:200ms changed"
+    >
+        <label for="filter">Filter</label>
+        <!-- trigger on input w/ delay -->
+        <input type="text" name="filter" />
+    </form>
+
     <div id="feed-results"></div>
+    <!-- load more button -->
 </div>

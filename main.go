@@ -116,6 +116,10 @@ func main() {
 
 func getDataFromChannel(url string) (*RSS, error) {
 	handle := strings.Replace(url, "https://www.youtube.com/", "", -1)
+	
+	if !strings.Contains(handle, "@") {
+		handle = "@" + handle
+	}
 
 	results := RSS{
 		Handle: handle,
