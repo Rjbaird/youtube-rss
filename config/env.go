@@ -9,10 +9,10 @@ import (
 )
 
 type Config struct {
-	PORT       string
-	REDIS_URL  string
-	TURSO_URL  string
-	TURSO_AUTH string
+	PORT      string
+	REDIS_URL string
+	TURSO_URL string
+	string
 }
 
 func ENV() (*Config, error) {
@@ -30,17 +30,7 @@ func ENV() (*Config, error) {
 		log.Fatal("You must set your 'REDIS_URL' environment variable. See\n\t https://www.mongodb.com/docs/drivers/go/current/usage-examples/#environment-variable")
 	}
 
-	TURSO_URL := os.Getenv("TURSO_URL")
-	if TURSO_URL == "" {
-		log.Fatal("You must set your 'TURSO_URL' environment variable. See\n\t https://www.mongodb.com/docs/drivers/go/current/usage-examples/#environment-variable")
-	}
-
-	TURSO_AUTH := os.Getenv("TURSO_AUTH")
-	if TURSO_AUTH == "" {
-		log.Fatal("You must set your 'TURSO_AUTH' environment variable. See\n\t https://www.mongodb.com/docs/drivers/go/current/usage-examples/#environment-variable")
-	}
-
-	config := Config{PORT: PORT, REDIS_URL: REDIS_URL, TURSO_URL: TURSO_URL, TURSO_AUTH: TURSO_AUTH}
+	config := Config{PORT: PORT, REDIS_URL: REDIS_URL}
 
 	return &config, nil
 }
