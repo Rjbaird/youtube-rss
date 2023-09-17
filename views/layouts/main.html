@@ -1,18 +1,19 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>YouTube Channel | RSS Feed Finder</title>
         <!-- unocss -->
-        {{template "css/unocss" .}}
+        {{ template "css/unocss" . }}
         <!-- htmx + alpine -->
-        {{template "js/htmx" .}} {{ template "js/alpine" . }}
+        {{ template "js/htmx" . }}
+        {{ template "js/alpine" . }}
         <!-- TODO: analytics w/ partytown -->
     </head>
     <body class="min-h-screen max-w-4xl px-5 block mx-auto font-sans">
-        {{template "partials/header" .}}
-        <main id="main">{{embed}}</main>
-        {{template "partials/footer" .}}
+        {{ template "partials/header" . }}
+        <main id="main">{{ embed }}</main>
+        {{ template "partials/footer" . }}
     </body>
 </html>
