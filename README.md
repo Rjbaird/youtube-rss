@@ -19,3 +19,4 @@ Generate and discover RSS feeds for YouTube channels
 ### Upcoming Features
 
 -   Add [full-text search](https://www.youtube.com/watch?v=infTV4ifNZY) using [RediSearch Go](https://github.com/RediSearch/redisearch-go)
+-   Replace string values with [ReJSON](https://github.com/nitishm/go-rejson)
