@@ -19,17 +19,17 @@ import (
 )
 
 type RSS struct {
-	Handle      string // primary key
+	Handle      string
 	ChannelID   string
 	Title       string
 	Description string
 	Image       string
-	Keywords    string
+	Keywords    []string
 	// TODO: add timestamp?
 }
 
 func main() {
-
+	fmt.Printf("Starting server...\n")
 	// ctx := context.Background()
 
 	// setup fiber server
@@ -63,7 +63,21 @@ func main() {
 	}))
 
 	server.Get("/", func(c *fiber.Ctx) error {
-		return c.Render("index", fiber.Map{}, "layouts/main")
+		keys, _, err := db.Scan(0, "*", 9).Result()
+		if err != nil {
+			log.Printf("Something went wrong getting recent keys: %s", err)
+		}
+		vals, err := db.MGet(keys...).Result()
+		if err != nil {
+			log.Printf("Something went wrong getting values: %s", err)
+		}
+		feeds := []RSS{}
+		for _, val := range vals {
+			feeds = append(feeds, feedToStruct(val.(string)))
+		}
+		return c.Render("index", fiber.Map{
+			"Feeds": feeds,
+		}, "layouts/main")
 	})
 
 	server.Get("/feed", func(c *fiber.Ctx) error {
@@ -74,6 +88,7 @@ func main() {
 		// TODO: add switch for shorts, videos, and other non-channel urls
 
 		handle := strings.Replace(url, "https://www.youtube.com/", "", -1)
+		// TODO: check for /videos and other paths and remove
 
 		val, err := db.Get(handle).Result()
 		if err != nil {
@@ -91,23 +106,15 @@ func main() {
 
 			return c.Render("partials/feed", fiber.Map{
 				"Feed":     feed,
-				"Keywords": keywordsToSlice(feed.Keywords),
+				"Keywords": feed.Keywords,
 			})
 		}
 
-		channelSlice := strings.Split(val, "::")
-		feed := RSS{
-			Handle:      channelSlice[0],
-			ChannelID:   channelSlice[1],
-			Title:       channelSlice[2],
-			Description: channelSlice[3],
-			Image:       channelSlice[4],
-			Keywords:    channelSlice[5],
-		}
+		feed := feedToStruct(val)
 		log.Printf("found: %s", feed.Handle)
 		return c.Render("partials/feed", fiber.Map{
 			"Feed":     feed,
-			"Keywords": keywordsToSlice(feed.Keywords),
+			"Keywords": feed.Keywords,
 		})
 	})
 
@@ -116,7 +123,7 @@ func main() {
 
 func getDataFromChannel(url string) (*RSS, error) {
 	handle := strings.Replace(url, "https://www.youtube.com/", "", -1)
-	
+
 	if !strings.Contains(handle, "@") {
 		handle = "@" + handle
 	}
@@ -138,7 +145,6 @@ func getDataFromChannel(url string) (*RSS, error) {
 			return
 		}
 		log.Println("Something went wrong getting rss feed:", err)
-		return
 	})
 
 	c.OnHTML("meta", func(e *colly.HTMLElement) {
@@ -159,7 +165,7 @@ func getDataFromChannel(url string) (*RSS, error) {
 
 	c.Visit(url)
 
-	results.Keywords = keywordsToString(tags)
+	results.Keywords = tags
 	return &results, nil
 }
 
@@ -173,4 +179,17 @@ func keywordsToSlice(keywords string) []string {
 
 func channelToValue(channel RSS) string {
 	return fmt.Sprintf("%s::%s::%s::%s::%s::%s", channel.Handle, channel.ChannelID, channel.Title, channel.Description, channel.Image, channel.Keywords)
+}
+
+func feedToStruct(feed string) RSS {
+	channelSlice := strings.Split(feed, "::")
+	kewyords := strings.Split(channelSlice[5], ",")
+	return RSS{
+		Handle:      channelSlice[0],
+		ChannelID:   channelSlice[1],
+		Title:       channelSlice[2],
+		Description: channelSlice[3],
+		Image:       channelSlice[4],
+		Keywords:    kewyords,
+	}
 }

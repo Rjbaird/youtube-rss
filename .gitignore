@@ -2,3 +2,7 @@
 .env
 *.db
 node_modules
+
+.restartServer
+server
+server.PID
