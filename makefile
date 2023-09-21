@@ -32,6 +32,8 @@ clean:
 	killall $(APP) 2> /dev/null || echo ""
 	touch .restartServer server.PID 
 	rm .restartServer server.PID $(APP) 2> /dev/null || echo ""
+	npm run prettier
+	go mod tidy
 
 prettier:
 	npm run prettier

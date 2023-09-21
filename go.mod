@@ -3,6 +3,7 @@ module github.com/bairrya/youtube-rss
 go 1.21
 
 require (
+	github.com/RediSearch/redisearch-go v1.1.1
 	github.com/gocolly/colly v1.2.0
 	github.com/gofiber/fiber/v2 v2.49.2
 	github.com/gofiber/template/html/v2 v2.0.5

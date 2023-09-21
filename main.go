@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RediSearch/redisearch-go/redisearch"
 	"github.com/bairrya/youtube-rss/db"
 	"github.com/gocolly/colly"
 	"github.com/gofiber/fiber/v2"
@@ -39,15 +40,16 @@ type Channel struct {
 func main() {
 	// ctx := context.Background()
 
-	// setup fiber server
+	// setup server
 	engine := html.New("./views", ".html")
 	server := fiber.New(fiber.Config{Views: engine})
 
-	// setup database
-	db, err := db.RedisConnect()
+	// setup database & search
+	db, rson, search, err := db.RedisStackConnect()
 	if err != nil {
 		log.Fatalf("Error connecting to redis: %s", err)
 	}
+	defer db.Close()
 
 	// define middleware
 	server.Use(logger.New())
@@ -66,6 +68,11 @@ func main() {
 	}))
 
 	server.Get("/", func(c *fiber.Ctx) error {
+		keys, _, err := search.Search(redisearch.NewQuery("@handle:{@*}").Limit(0, 5))
+		if err != nil {
+			log.Printf("Error searching: %s", err)
+		}
+		fmt.Println(keys)
 		return c.Render("index", fiber.Map{}, "layouts/main")
 	})
 
@@ -79,7 +86,7 @@ func main() {
 		handle := strings.Replace(url, "https://www.youtube.com/", "", -1)
 		// TODO: check for /videos and other paths and remove
 
-		val, err := redis.Bytes(db.JSONGet(handle, "."))
+		val, err := redis.Bytes(rson.JSONGet(handle, "."))
 		if err != nil {
 			feed, err := getDataFromChannel(url)
 			if err != nil || feed.Title == "" {
@@ -87,7 +94,7 @@ func main() {
 				return c.Render("partials/feed-error", fiber.Map{})
 			}
 
-			res, err := db.JSONSet(feed.Handle, ".", feed)
+			res, err := rson.JSONSet(feed.Handle, ".", feed)
 			if err != nil || res.(string) != "OK" {
 				log.Fatalf("Failed to save %s to redis: %s", feed.Handle, err)
 			}
@@ -162,4 +169,3 @@ func getDataFromChannel(url string) (*Channel, error) {
 	results.Keywords = tags
 	return &results, nil
 }
-
