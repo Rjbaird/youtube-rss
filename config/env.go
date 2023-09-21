@@ -9,10 +9,8 @@ import (
 )
 
 type Config struct {
-	PORT      string
-	REDIS_URL string
-	TURSO_URL string
-	string
+	PORT        string
+	REDIS_URL   string
 }
 
 func ENV() (*Config, error) {
@@ -27,7 +25,7 @@ func ENV() (*Config, error) {
 
 	REDIS_URL := os.Getenv("REDIS_URL")
 	if REDIS_URL == "" {
-		log.Fatal("You must set your 'REDIS_URL' environment variable. See\n\t https://www.mongodb.com/docs/drivers/go/current/usage-examples/#environment-variable")
+		log.Fatal("You must set your 'REDIS_URL' environment variable.")
 	}
 
 	config := Config{PORT: PORT, REDIS_URL: REDIS_URL}

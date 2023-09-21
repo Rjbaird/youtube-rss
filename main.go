@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
+	"github.com/bairrya/youtube-rss/db"
 	"github.com/gocolly/colly"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -14,8 +16,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html/v2"
-
-	"github.com/bairrya/youtube-rss/db"
+	"github.com/gomodule/redigo/redis"
 )
 
 type RSS struct {
@@ -25,11 +26,17 @@ type RSS struct {
 	Description string
 	Image       string
 	Keywords    []string
-	// TODO: add timestamp?
+}
+
+type Channel struct {
+	Handle      string   `json:"handle"`
+	ChannelID   string   `json:"channel_id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Keywords    []string `json:"keywords"`
 }
 
 func main() {
-	fmt.Printf("Starting server...\n")
 	// ctx := context.Background()
 
 	// setup fiber server
@@ -39,9 +46,8 @@ func main() {
 	// setup database
 	db, err := db.RedisConnect()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Error connecting to redis: %s", err)
 	}
-	defer db.Close()
 
 	// define middleware
 	server.Use(logger.New())
@@ -49,9 +55,6 @@ func main() {
 	server.Use(cors.New())
 	server.Use(recover.New())
 	server.Use(limiter.New(limiter.Config{
-		// Next: func(c *fiber.Ctx) bool {
-		// 	return c.IP() == "127.0.0.1"
-		// },
 		Max:        20,
 		Expiration: 30 * time.Second,
 		KeyGenerator: func(c *fiber.Ctx) string {
@@ -63,21 +66,7 @@ func main() {
 	}))
 
 	server.Get("/", func(c *fiber.Ctx) error {
-		keys, _, err := db.Scan(0, "*", 9).Result()
-		if err != nil {
-			log.Printf("Something went wrong getting recent keys: %s", err)
-		}
-		vals, err := db.MGet(keys...).Result()
-		if err != nil {
-			log.Printf("Something went wrong getting values: %s", err)
-		}
-		feeds := []RSS{}
-		for _, val := range vals {
-			feeds = append(feeds, feedToStruct(val.(string)))
-		}
-		return c.Render("index", fiber.Map{
-			"Feeds": feeds,
-		}, "layouts/main")
+		return c.Render("index", fiber.Map{}, "layouts/main")
 	})
 
 	server.Get("/feed", func(c *fiber.Ctx) error {
@@ -90,18 +79,21 @@ func main() {
 		handle := strings.Replace(url, "https://www.youtube.com/", "", -1)
 		// TODO: check for /videos and other paths and remove
 
-		val, err := db.Get(handle).Result()
+		val, err := redis.Bytes(db.JSONGet(handle, "."))
 		if err != nil {
 			feed, err := getDataFromChannel(url)
 			if err != nil || feed.Title == "" {
+				log.Printf("Something went wrong getting channel data for %s: %s", handle, err)
 				return c.Render("partials/feed-error", fiber.Map{})
 			}
 
-			log.Printf("adding: %s", feed.Handle)
+			res, err := db.JSONSet(feed.Handle, ".", feed)
+			if err != nil || res.(string) != "OK" {
+				log.Fatalf("Failed to save %s to redis: %s", feed.Handle, err)
+			}
 
-			err = db.Set(feed.Handle, channelToValue(*feed), 0).Err()
-			if err != nil {
-				log.Printf("Something went wrong setting %s: %s", feed.Handle, err)
+			if res.(string) == "OK" {
+				log.Printf("Saved %s to redis", feed.Handle)
 			}
 
 			return c.Render("partials/feed", fiber.Map{
@@ -110,7 +102,11 @@ func main() {
 			})
 		}
 
-		feed := feedToStruct(val)
+		feed := Channel{}
+		err = json.Unmarshal(val, &feed)
+		if err != nil {
+			log.Fatalf("Failed to JSON Unmarshal")
+		}
 		log.Printf("found: %s", feed.Handle)
 		return c.Render("partials/feed", fiber.Map{
 			"Feed":     feed,
@@ -121,14 +117,14 @@ func main() {
 	log.Fatal(server.Listen(fmt.Sprintf(":%s", "3000")))
 }
 
-func getDataFromChannel(url string) (*RSS, error) {
+func getDataFromChannel(url string) (*Channel, error) {
 	handle := strings.Replace(url, "https://www.youtube.com/", "", -1)
 
 	if !strings.Contains(handle, "@") {
 		handle = "@" + handle
 	}
 
-	results := RSS{
+	results := Channel{
 		Handle: handle,
 	}
 	tags := []string{}
@@ -153,8 +149,6 @@ func getDataFromChannel(url string) (*RSS, error) {
 			results.Title = e.Attr("content")
 		case "og:url":
 			results.ChannelID = strings.Replace(e.Attr("content"), "https://www.youtube.com/channel/", "", -1)
-		case "og:image":
-			results.Image = e.Attr("content")
 		case "description":
 			results.Description = e.Attr("content")
 		case "og:video:tag":
@@ -169,27 +163,3 @@ func getDataFromChannel(url string) (*RSS, error) {
 	return &results, nil
 }
 
-func keywordsToString(keywords []string) string {
-	return strings.Join(keywords[:], ",")
-}
-
-func keywordsToSlice(keywords string) []string {
-	return strings.Split(keywords, ",")
-}
-
-func channelToValue(channel RSS) string {
-	return fmt.Sprintf("%s::%s::%s::%s::%s::%s", channel.Handle, channel.ChannelID, channel.Title, channel.Description, channel.Image, channel.Keywords)
-}
-
-func feedToStruct(feed string) RSS {
-	channelSlice := strings.Split(feed, "::")
-	kewyords := strings.Split(channelSlice[5], ",")
-	return RSS{
-		Handle:      channelSlice[0],
-		ChannelID:   channelSlice[1],
-		Title:       channelSlice[2],
-		Description: channelSlice[3],
-		Image:       channelSlice[4],
-		Keywords:    kewyords,
-	}
-}
