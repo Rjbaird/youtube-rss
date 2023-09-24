@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/RediSearch/redisearch-go/redisearch"
 	"github.com/bairrya/youtube-rss/db"
 	"github.com/gocolly/colly"
 	"github.com/gofiber/fiber/v2"
@@ -20,23 +19,6 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
-type RSS struct {
-	Handle      string
-	ChannelID   string
-	Title       string
-	Description string
-	Image       string
-	Keywords    []string
-}
-
-type Channel struct {
-	Handle      string   `json:"handle"`
-	ChannelID   string   `json:"channel_id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Keywords    []string `json:"keywords"`
-}
-
 func main() {
 	// ctx := context.Background()
 
@@ -45,11 +27,11 @@ func main() {
 	server := fiber.New(fiber.Config{Views: engine})
 
 	// setup database & search
-	db, rson, search, err := db.RedisStackConnect()
+	r, err := db.RedisStackConnect()
 	if err != nil {
 		log.Fatalf("Error connecting to redis: %s", err)
 	}
-	defer db.Close()
+	defer r.Client.Close()
 
 	// define middleware
 	server.Use(logger.New())
@@ -68,11 +50,6 @@ func main() {
 	}))
 
 	server.Get("/", func(c *fiber.Ctx) error {
-		keys, _, err := search.Search(redisearch.NewQuery("@handle:{@*}").Limit(0, 5))
-		if err != nil {
-			log.Printf("Error searching: %s", err)
-		}
-		fmt.Println(keys)
 		return c.Render("index", fiber.Map{}, "layouts/main")
 	})
 
@@ -86,7 +63,7 @@ func main() {
 		handle := strings.Replace(url, "https://www.youtube.com/", "", -1)
 		// TODO: check for /videos and other paths and remove
 
-		val, err := redis.Bytes(rson.JSONGet(handle, "."))
+		val, err := redis.Bytes(r.ReJSON.JSONGet(handle, "."))
 		if err != nil {
 			feed, err := getDataFromChannel(url)
 			if err != nil || feed.Title == "" {
@@ -94,9 +71,12 @@ func main() {
 				return c.Render("partials/feed-error", fiber.Map{})
 			}
 
-			res, err := rson.JSONSet(feed.Handle, ".", feed)
+			// TODO: marshal to JSON
+			jsonFeed, _ := json.Marshal(feed)
+
+			res, err := r.ReJSON.JSONSet(feed.Handle, ".", jsonFeed)
 			if err != nil || res.(string) != "OK" {
-				log.Fatalf("Failed to save %s to redis: %s", feed.Handle, err)
+				log.Printf("Failed to save %s to redis: %s", feed.Handle, err)
 			}
 
 			if res.(string) == "OK" {
@@ -108,30 +88,29 @@ func main() {
 				"Keywords": feed.Keywords,
 			})
 		}
-
-		feed := Channel{}
-		err = json.Unmarshal(val, &feed)
+		readChannel := db.Channel{}
+		err = json.Unmarshal(val, &readChannel)
 		if err != nil {
-			log.Fatalf("Failed to JSON Unmarshal")
+			log.Printf("Failed to JSON Unmarshal")
 		}
-		log.Printf("found: %s", feed.Handle)
+		log.Printf("found: %s", readChannel.Handle)
 		return c.Render("partials/feed", fiber.Map{
-			"Feed":     feed,
-			"Keywords": feed.Keywords,
+			"Feed":     readChannel,
+			"Keywords": readChannel.Keywords,
 		})
 	})
 
 	log.Fatal(server.Listen(fmt.Sprintf(":%s", "3000")))
 }
 
-func getDataFromChannel(url string) (*Channel, error) {
+func getDataFromChannel(url string) (*db.Channel, error) {
 	handle := strings.Replace(url, "https://www.youtube.com/", "", -1)
 
 	if !strings.Contains(handle, "@") {
 		handle = "@" + handle
 	}
 
-	results := Channel{
+	results := db.Channel{
 		Handle: handle,
 	}
 	tags := []string{}
